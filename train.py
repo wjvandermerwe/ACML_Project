@@ -53,6 +53,7 @@ def load_and_preprocess(config):
 
 def train_model(config):
     if torch.cuda.is_available():
+        print("cuda is available")
         device = "cuda"
     elif torch.has_mps or torch.backends.mps.is_available():
         device = "mps"
