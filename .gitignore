@@ -1,0 +1,5 @@
+myenv
+*.json
+runs
+
+__pycache__
