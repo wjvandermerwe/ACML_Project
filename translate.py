@@ -63,8 +63,9 @@ def translate(sentence: str):
             # project next token
             prob = model.project(out[:, -1])
             _, next_word = torch.max(prob, dim=1)
-            decoder_input = torch.cat([decoder_input, torch.empty(1, 1).type_as(source).fill_(next_word.item()).to(device)], dim=1)
-
+            next_word = next_word.item()
+            # decoder_input = torch.cat([decoder_input, torch.empty(1, 1).type_as(source).fill_(next_word.item()).to(device)], dim=1)
+            decoder_input = torch.cat([decoder_input, torch.tensor([[next_word]], dtype=torch.int64).to(device)], dim=1)
             # print the translated word
             print(f"{tokenizer_tgt.decode([next_word.item()])}", end=' ')
 
