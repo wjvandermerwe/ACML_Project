@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
 
-
 class BilingualDataset(Dataset):
 
     def __init__(self, ds, tokenizer_src, tokenizer_tgt, src_lang, tgt_lang, seq_len):
@@ -36,14 +35,9 @@ class BilingualDataset(Dataset):
         # We will only add <s>, and </s> only on the label
         dec_num_padding_tokens = self.seq_len - len(dec_input_tokens) - 1
 
-        # Check if sentences are too long and trim if necessary
-        if enc_num_padding_tokens < 0:
-            enc_input_tokens = enc_input_tokens[:self.seq_len - 2]  # Trim to max allowable tokens
-            enc_num_padding_tokens = 0  # No padding needed
-
-        if dec_num_padding_tokens < 0:
-            dec_input_tokens = dec_input_tokens[:self.seq_len - 1]  # Trim to max allowable tokens
-            dec_num_padding_tokens = 0  # No padding needed
+        # Make sure the number of padding tokens is not negative. If it is, the sentence is too long
+        if enc_num_padding_tokens < 0 or dec_num_padding_tokens < 0:
+            raise ValueError("Sentence is too long")
 
         # Add <s> and </s> token
         encoder_input = torch.cat(
@@ -84,15 +78,13 @@ class BilingualDataset(Dataset):
         return {
             "encoder_input": encoder_input,  # (seq_len)
             "decoder_input": decoder_input,  # (seq_len)
-            "encoder_mask": (encoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int(),  # (1, 1, seq_len)
-            "decoder_mask": (decoder_input != self.pad_token).unsqueeze(0).int() & causal_mask(decoder_input.size(0)),
-            # (1, seq_len) & (1, seq_len, seq_len),
+            "encoder_mask": (encoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int(), # (1, 1, seq_len)
+            "decoder_mask": (decoder_input != self.pad_token).unsqueeze(0).int() & causal_mask(decoder_input.size(0)), # (1, seq_len) & (1, seq_len, seq_len),
             "label": label,  # (seq_len)
             "src_text": src_text,
             "tgt_text": tgt_text,
         }
-
-
+    
 def causal_mask(size):
     mask = torch.triu(torch.ones((1, size, size)), diagonal=1).type(torch.int)
     return mask == 0
