@@ -17,13 +17,11 @@ if cuda_available:
 # CPU Information
 print("\nCPU Information:")
 print(f"Number of CPUs: {torch.get_num_threads()}")
-print(f"BLAS and LAPACK Information:")
-print(f"  - BLAS Version: {torch._C._get_blas_info()['libraries']}")
-print(f"  - LAPACK Version: {torch._C._get_lapack_info()['libraries']}")
 
 # Memory Information
-total_memory = torch.cuda.memory_allocated()
-cached_memory = torch.cuda.memory_reserved()
-print(f"\nMemory Information (if CUDA is available):")
-print(f"  - Allocated Memory: {total_memory / (1024 ** 3):.2f} GB")
-print(f"  - Cached Memory: {cached_memory / (1024 ** 3):.2f} GB")
+if cuda_available:
+    total_memory = torch.cuda.memory_allocated()
+    cached_memory = torch.cuda.memory_reserved()
+    print(f"\nMemory Information (if CUDA is available):")
+    print(f"  - Allocated Memory: {total_memory / (1024 ** 3):.2f} GB")
+    print(f"  - Cached Memory: {cached_memory / (1024 ** 3):.2f} GB")
