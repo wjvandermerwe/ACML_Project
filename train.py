@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 # Huggingface datasets and tokenizers
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
@@ -41,11 +41,13 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
         # calculate output
         out = model.decode(encoder_output, source_mask, decoder_input, decoder_mask)
 
+
         # get next token
         prob = model.project(out[:, -1])
         _, next_word = torch.max(prob, dim=1)
         decoder_input = torch.cat(
             [decoder_input, torch.empty(1, 1).type_as(source).fill_(next_word.item()).to(device)], dim=1
+        
         )
 
         if next_word == eos_idx:
@@ -139,6 +141,38 @@ def get_or_build_tokenizer(config, ds, lang):
     return tokenizer
 
 def get_ds(config):
+    # train_ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
+    # val_ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='validation')
+
+    # # Function to add an ID to each example
+    # def add_id(example, idx):
+    #     example['id'] = str(idx)
+    #     return example
+
+    # # Add IDs to train and validation datasets
+    # train_ds_raw = train_ds_raw.map(add_id, with_indices=True)
+    # val_ds_raw = val_ds_raw.map(add_id, with_indices=True)
+
+    # # Combine the datasets if needed
+    # combined_ds_raw = concatenate_datasets([train_ds_raw, val_ds_raw])
+
+    # # Check the first few examples to ensure the ID has been added
+    # print(train_ds_raw[0])
+    # print(val_ds_raw[0])
+
+    # # Proceed with the rest of your code
+    # # Build tokenizers
+    # tokenizer_src = get_or_build_tokenizer(config, combined_ds_raw, config['lang_src'])
+    # tokenizer_tgt = get_or_build_tokenizer(config, combined_ds_raw, config['lang_tgt'])
+
+    # # Create BilingualDataset instances for training and validation
+    # train_ds = BilingualDataset(train_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
+    # val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
+    # # Find the maximum length of each sentence in the source and target sentence
+    # max_len_src = 0
+    # max_len_tgt = 0
+
+    # for item in combined_ds_raw:
     ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
     # Build tokenizers
@@ -256,7 +290,7 @@ def train_model(config):
             global_step += 1
 
         # Run validation at the end of every epoch
-            run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
+        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
 
         # Save the model at the end of every epoch
         model_filename = get_weights_file_path(config, f"{epoch:02d}")
