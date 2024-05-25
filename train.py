@@ -50,6 +50,9 @@ def load_and_preprocess(config):
 
     return train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt
 
+def get_model(config, vocab_src_len, vocab_tgt_len):
+    model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'])
+    return model
 
 def train_model(config):
     if torch.cuda.is_available():
@@ -65,13 +68,10 @@ def train_model(config):
     Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = load_and_preprocess(config)
 
-    # build transformer
-    model = build_transformer(tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size(), config["seq_len"], config['seq_len'],
-                              size=config['d_model']).to(device)
-    # tensorboard
+    model = get_model(config, vocab_src_len=tokenizer_src.get_vocab_size(), vocab_tgt_len=tokenizer_tgt.get_vocab_size()).to(device)
+
     board = SummaryWriter(config['experiment_name'])
 
-    # optimiser
     optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
 
     # If the user specified a model to preload before training, load it

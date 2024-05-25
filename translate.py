@@ -14,7 +14,7 @@ def translate(sentence: str):
     config = get_config()
     tokenizer_src = Tokenizer.from_file(str(Path(config['tokenizer_file'].format(config['lang_src']))))
     tokenizer_tgt = Tokenizer.from_file(str(Path(config['tokenizer_file'].format(config['lang_tgt']))))
-    model = build_transformer(tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size(), config["seq_len"], config['seq_len'], d_model=config['d_model']).to(device)
+    model = build_transformer(tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size(), config["seq_len"], config['seq_len'], size=config['d_model']).to(device)
 
     # Load the pretrained weights
     model_filename = latest_weights_file_path(config)
@@ -48,7 +48,7 @@ def translate(sentence: str):
         # Initialize the decoder input with the sos token
         decoder_input = torch.empty(1, 1).fill_(tokenizer_tgt.token_to_id('[SOS]')).type_as(source).to(device)
 
-        # Print the source sentence and target start prompt
+        # Print the source sentence and target start prompt 
         if label != "": print(f"{f'ID: ':>12}{id}") 
         print(f"{f'SOURCE: ':>12}{sentence}")
         if label != "": print(f"{f'TARGET: ':>12}{label}") 
