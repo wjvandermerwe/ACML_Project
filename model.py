@@ -48,6 +48,7 @@ class PositionalEncoding(nn.Module):
 class LayerNorm(nn.Module):
     def __init__(self, features, eps=1e-6):
         super(LayerNorm, self).__init__()
+        # https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html
         self.layer_norm = nn.LayerNorm(normalized_shape=features, eps=eps)
     def forward(self, x):
         return self.layer_norm(x)
@@ -97,10 +98,10 @@ class MultiHeadAttention(nn.Module):
         vec = query.shape[-1]
         attention_scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(vec)
 
+        attention_scores = attention_scores.softmax(dim=-1)
         if mask is not None:
             attention_scores.masked_fill(mask == 0, -1e9)
 
-        attention_scores = attention_scores.softmax(dim=-1)
         if dropout is not None:
             attention_scores = dropout(attention_scores)
 
@@ -114,7 +115,6 @@ class SkipConnection(nn.Module):
         self.norm = LayerNorm(features=features_size)
     def forward(self, x, connector):
         # apply the layer (norm and add)
-        # https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html
         return x + self.dropout(connector(self.norm(x)))
 
 class MappingLayer(nn.Module):
