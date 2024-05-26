@@ -1,16 +1,13 @@
-from torchmetrics.text import BLEUScore
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 from tensorboard.backend.event_processing import event_accumulator
 import torch
-import torchmetrics
 from model import build_transformer
 from config import get_config, get_weights_file_path
 from train import load_and_preprocess
 import altair as alt
 import pandas as pd
-
 from validation import greedy_decode
 
 def load_model_from_weights(epoch = "15"):
@@ -20,7 +17,7 @@ def load_model_from_weights(epoch = "15"):
     _, val_dataloader, tokenizer_src, tokenizer_tgt = load_and_preprocess(config)
     model = build_transformer(tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size(), config["seq_len"], config['seq_len'], size=config['d_model']).to(device)
     model_filename = get_weights_file_path(config, epoch)
-    state = torch.load(model_filename, map_location=torch.device("cpu"))
+    state = torch.load(model_filename, map_location=device) # this is for loading the state files even on different devices than the trianing
     model.load_state_dict(state['model_state_dict'], strict=False)
     return val_dataloader, tokenizer_src, tokenizer_tgt, model, device, config
 
@@ -106,7 +103,7 @@ def run_attention_visual():
     layers = [0, 1, 2]
     heads = [0, 1, 2, 3, 4, 5, 6, 7]
     charts = get_all_attention_maps(model, layers, heads, encoder_input_tokens, decoder_input_tokens, min(20, sentence_len))
-    charts.save('attention_maps.html')
+    charts.save('vis/attention_maps.html')
     print("Saved attention maps to attention_maps.html")
 
 def load_tensorboard_runs():
@@ -115,77 +112,30 @@ def load_tensorboard_runs():
     ea.Reload()
     return ea
 
-# Function to apply moving average smoothing
 def smooth_data(data, window_size=10):
     return data.rolling(window=window_size, min_periods=1).mean()
 
-def metric_visualisation_from_training():
-    ea = load_tensorboard_runs()
+def export_tensorboard_metrics():
+    ea = load_tensorboard_runs();
     for tag in ea.Tags()['scalars']:
         metrics = ea.Scalars(tag)
         df = pd.DataFrame([(x.step, x.value) for x in metrics], columns=['Step', 'Value'])
-        if df.empty:
-            print(f"No data for {tag}")
-            continue
-
         # Apply smoothing
         df['Smoothed Value'] = smooth_data(df['Value'])
 
         # Plot the metric
         plt.figure(figsize=(10, 5))
-        sns.lineplot(data=df, x='Step', y='Smoothed Value')
-        plt.title(f'{tag} Over Training Steps (Smoothed)')
+        sns.lineplot(data=df, x='Step', y='Value')
+        plt.title(f'{tag} Over Training Steps')
         plt.xlabel('Training Steps')
-        plt.ylabel('Smoothed Value')
+        plt.ylabel('Value')
         plt.grid(True)
         
         # Save the plot as an image
-        image_filename = f'{tag.replace("/", "_")}_smoothed.png'  # Replace characters that might not be valid in file names
+        image_filename = f'vis/{tag.replace("/", "_")}.png'  # Replace characters that might not be valid in file names
         plt.savefig(image_filename)
-        plt.close()  # Close the plot to free up memory
-        print(f"Saved plot for {tag} as {image_filename}")
-
-metric_visualisation_from_training()
-
-def bleu_visualisation_after_training():
-    
-    bleu_metric = BLEUScore()
-    all_hypotheses = []
-    all_references = []
-
-    for i in range(15):
-        val_dataloader, tokenizer_src, tokenizer_tgt, model, device, config = load_model_from_weights(f"{i:02d}")
-        batch, _, _, model_out = load_next_batch(model, val_dataloader, tokenizer_src, tokenizer_tgt, device, config)
-        model_out_text = tokenizer_tgt.decode(model_out.detach().cpu().numpy())
-        
-        # Decode predictions and references to strings
-        hypotheses = [model_out_text]
-        references = [batch["tgt_text"][0]]
-        
-        print(f'Source: {batch["src_text"][0]}')
-        print(f'Target: {references[0]}')
-        print(f'Predicted: {hypotheses[0]}')
-        
-        all_hypotheses.extend(hypotheses)
-        all_references.append([references[0]])
-
-    # Calculate BLEU score using torchmetrics
-    bleu_score = bleu_metric(all_hypotheses, all_references)
-    # print(f'BLEU score: {bleu_score.item()}')
-
-    # Plot BLEU score
-    plt.figure(figsize=(10, 5))
-    sns.histplot([bleu_score.item() for _ in range(10)], bins=30)
-    plt.title('Distribution of BLEU Scores')
-    plt.xlabel('BLEU Score')
-    plt.ylabel('Frequency')
-    plt.grid(True)
-    
-    # Save the plot as an image
-    image_filename = 'bleu_score_distribution.png'
-    plt.savefig(image_filename)
-    plt.close()
-    print(f"Saved BLEU score distribution plot as {image_filename}")
+        plt.close()
+        print(f"Saved BLEU score distribution plot as {image_filename}")
 
 # Call the function to visualize BLEU scores
 # bleu_visualisation_after_training()

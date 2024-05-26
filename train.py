@@ -1,26 +1,15 @@
 from model import build_transformer
 from dataset import BilingualDataset, get_or_build_tokenizer
 from config import get_config, get_weights_file_path, latest_weights_file_path
-
-# import torchtext.datasets as datasets
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split, default_collate
-# from torch.optim.lr_scheduler import LambdaLR
-from validation import validation_pass
+from validation import run_validation
 import warnings
 from tqdm import tqdm
 import os
 from pathlib import Path
-
-# Huggingface datasets and tokenizers
-from datasets import load_dataset, concatenate_datasets
-from tokenizers import Tokenizer
-from tokenizers.models import WordLevel
-from tokenizers.trainers import WordLevelTrainer
-from tokenizers.pre_tokenizers import Whitespace
-
-import torchmetrics
+from datasets import load_dataset
 from torch.utils.tensorboard import SummaryWriter
 
 def collate_fn(batch):
@@ -43,7 +32,6 @@ def load_and_preprocess(config):
     train_ds = BilingualDataset(train_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
 
-    # Find the maximum length of each sentence in the source and target sentence
     max_len_src = 0
     max_len_tgt = 0
 
@@ -67,22 +55,17 @@ def train_model(config):
     # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
     print("Using device:", device)
-        
-
-    
     device = torch.device(device)
-
-    # Make sure the weights folder exists
     Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = load_and_preprocess(config)
+
     model = build_transformer(tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size(), config["seq_len"], config['seq_len'], size=config['d_model']).to(device)
-    # Tensorboard
+
     writer = SummaryWriter(config['experiment_name'])
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
 
-    # If the user specified a model to preload before training, load it
     initial_epoch = 0
     global_step = 0
     preload = config['preload']
@@ -138,7 +121,7 @@ def train_model(config):
             global_step += 1
 
         # Run validation at the end of every epoch
-        validation_pass(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
+        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
 
         # Save the model at the end of every epoch
         model_filename = get_weights_file_path(config, f"{epoch:02d}")
@@ -150,7 +133,5 @@ def train_model(config):
         }, model_filename)
 
 
-
-
-# config = get_config()
-# train_model(config)
+config = get_config()
+train_model(config)

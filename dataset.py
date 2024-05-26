@@ -4,10 +4,7 @@ from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset
-
-
 
 
 def get_all_sentences(ds, lang):

@@ -3,7 +3,7 @@ import torch
 import torchmetrics
 from dataset import causal_mask
 
-def validation_pass(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_examples=2):
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_examples=2):
     model.eval()
     count = 0
 
@@ -17,16 +17,15 @@ def validation_pass(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len,
             _, console_width = console.read().split()
             console_width = int(console_width)
     except:
-        # If we can't get the console width, use 80 as default
         console_width = 80
 
     with torch.no_grad():
         for batch in validation_ds:
             count += 1
-            encoder_input = batch["encoder_input"].to(device) # (b, seq_len)
-            encoder_mask = batch["encoder_mask"].to(device) # (b, 1, 1, seq_len)
+            encoder_input = batch["encoder_input"].to(device) 
+            encoder_mask = batch["encoder_mask"].to(device) 
 
-            # check that the batch size is 1
+
             assert encoder_input.size(
                 0) == 1, "Batch size must be 1 for validation"
 
@@ -40,7 +39,6 @@ def validation_pass(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len,
             expected.append(target_text)
             predicted.append(model_out_text)
             
-            # Print the source, target and model output
             print_msg('-'*console_width)
             print_msg(f"{f'SOURCE: ':>12}{source_text}")
             print_msg(f"{f'TARGET: ':>12}{target_text}")
@@ -51,7 +49,6 @@ def validation_pass(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len,
                 break
     
     if writer:
-        # Evaluate the character error rate
         # Compute the char error rate 
         metric = torchmetrics.CharErrorRate()
         cer = metric(predicted, expected)
@@ -79,17 +76,14 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
     encoder_output = model.encode(source, source_mask)
     # Initialize the decoder input with the sos token
     decoder_input = torch.empty(1, 1).fill_(sos_idx).type_as(source).to(device)
+
     while True:
         if decoder_input.size(1) == max_len:
             break
-
         # build mask for target
         decoder_mask = causal_mask(decoder_input.size(1)).type_as(source_mask).to(device)
-
         # calculate output
         out = model.decode(encoder_output, source_mask, decoder_input, decoder_mask)
-
-
         # get next token
         prob = model.project(out[:, -1])
         _, next_word = torch.max(prob, dim=1)
@@ -97,7 +91,6 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
             [decoder_input, torch.empty(1, 1).type_as(source).fill_(next_word.item()).to(device)], dim=1
         
         )
-
         if next_word == eos_idx:
             break
 
