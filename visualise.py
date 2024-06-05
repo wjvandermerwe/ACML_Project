@@ -132,11 +132,10 @@ def export_tensorboard_metrics():
         plt.grid(True)
         
         # Save the plot as an image
-        image_filename = f'vis/{tag.replace("/", "_")}.png'  # Replace characters that might not be valid in file names
+        image_filename = f'vis/{tag.replace("/", "_")}.png'
         plt.savefig(image_filename)
         plt.close()
         print(f"Saved BLEU score distribution plot as {image_filename}")
 
-# Call the function to visualize BLEU scores
-# bleu_visualisation_after_training()
+
     

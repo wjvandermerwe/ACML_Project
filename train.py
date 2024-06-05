@@ -5,9 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split, default_collate
 from validation import run_validation
-import warnings
 from tqdm import tqdm
-import os
 from pathlib import Path
 from datasets import load_dataset
 from torch.utils.tensorboard import SummaryWriter
@@ -52,7 +50,6 @@ def load_and_preprocess(config):
 
 
 def train_model(config):
-    # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
     print("Using device:", device)
     device = torch.device(device)
@@ -95,19 +92,16 @@ def train_model(config):
             decoder_mask = batch['decoder_mask'].to(device)
 
             # Run the tensors through the encoder, decoder and the projection layer
-            encoder_output = model.encode(encoder_input, encoder_mask) # (B, seq_len, d_model)
-            decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask) # (B, seq_len, d_model)
-            proj_output = model.project(decoder_output) # (B, seq_len, vocab_size)
-
-            # Compare the output with the label
-            label = batch['label'].to(device) # (B, seq_len)
+            encoder_output = model.encode(encoder_input, encoder_mask)
+            decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask) 
+            proj_output = model.project(decoder_output)
+            label = batch['label'].to(device) 
 
             # Compute the loss using a simple cross entropy
             # https://pytorch.org/docs/stable/generated/torch.Tensor.view.html
             loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
             batch_iterator.set_postfix({"loss": f"{loss.item():6.3f}"})
 
-            # Log the loss
             writer.add_scalar('train loss', loss.item(), global_step)
             writer.flush()
 
